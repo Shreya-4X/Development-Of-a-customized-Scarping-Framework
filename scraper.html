@@ -1,0 +1,214 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Web Scraper</title>
+    <link rel="stylesheet" href="{{ url_for('send_static', path='styles/scraper.css') }}">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        #charts-container {
+            display: flex;
+            justify-content: center;
+            margin-top: 20px;
+        }
+        #data-chart {
+            width: 360px; /* Adjust width */
+            height: 360px; /* Adjust height */
+        }
+    </style>
+</head>
+<body>
+    <button id="home-button" onclick="window.location.href='http://127.0.0.1:5000/'">Home</button>
+    <h1>Web Scraper</h1>
+    <input type="text" id="url-input" placeholder="Enter URL">
+    <button id="load-url">Load URL</button>
+    <button id="start-selector">Start Selector</button>
+    <button id="stop-selector">Stop Selector</button>
+    <div id="content" contenteditable="true"></div>
+    <input type="text" id="tag-input" placeholder="Enter tags (comma separated)"><br><br>
+    <button id="scrape">Scrape Data</button>
+    <pre id="scraped-data"></pre>
+    <button id="download-csv">Download CSV</button>
+    <button id="download-pdf">Download PDF</button>
+    <button id="visualize-data">Visualize Data</button>
+    <button id="analyze-sentiment">Analyze Sentiment</button>
+
+    <!-- Chart.js Container -->
+    <div id="charts-container">
+        <canvas id="data-chart" style="display: none;"></canvas>
+    </div>
+
+    <!-- Textual Conclusion -->
+    <pre id="sentiment-analysis"></pre>
+    <pre id="sentiment-conclusion"></pre>
+
+    <script>
+        let selecting = false;
+        let scrapedData = {};
+
+        document.getElementById('load-url').addEventListener('click', () => {
+            const url = document.getElementById('url-input').value;
+            fetch('/load-url', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ url })
+            })
+            .then(response => response.text())
+            .then(data => {
+                document.getElementById('content').innerHTML = data;
+            });
+        });
+
+        document.getElementById('start-selector').addEventListener('click', () => {
+            selecting = true;
+            document.getElementById('content').addEventListener('click', selectElement, true);
+        });
+
+        document.getElementById('stop-selector').addEventListener('click', () => {
+            selecting = false;
+            document.getElementById('content').removeEventListener('click', selectElement, true);
+        });
+
+        function selectElement(event) {
+            if (!selecting) return;
+            event.preventDefault();
+            event.stopPropagation();
+
+            const element = event.target;
+            element.classList.add('highlight');
+            const tagName = element.tagName.toLowerCase();
+            let tagInput = document.getElementById('tag-input');
+            let tags = tagInput.value.split(',').map(tag => tag.trim()).filter(tag => tag.length > 0);
+
+            if (!tags.includes(tagName)) {
+                tags.push(tagName);
+                tagInput.value = tags.join(', ');
+            }
+        }
+
+        document.getElementById('scrape').addEventListener('click', () => {
+            const tags = document.getElementById('tag-input').value.split(',').map(tag => tag.trim());
+            fetch('/scrape', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ tags, content: document.getElementById('content').innerHTML })
+            })
+            .then(response => response.json())
+            .then(data => {
+                scrapedData = data;
+                document.getElementById('scraped-data').innerText = formatJSON(data);
+            });
+        });
+
+        document.getElementById('download-csv').addEventListener('click', () => {
+            fetch('/download-csv', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify(scrapedData)
+            })
+            .then(response => response.blob())
+            .then(blob => {
+                const url = window.URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = 'scraped_data.csv';
+                document.body.appendChild(a);
+                a.click();
+                a.remove();
+            });
+        });
+
+        document.getElementById('download-pdf').addEventListener('click', () => {
+            fetch('/download-pdf', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify(scrapedData)
+            })
+            .then(response => response.blob())
+            .then(blob => {
+                const url = window.URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = 'scraped_data.pdf';
+                document.body.appendChild(a);
+                a.click();
+                a.remove();
+            });
+        });
+
+        document.getElementById('visualize-data').addEventListener('click', () => {
+            fetch('/visualize', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ scraped_data: scrapedData })
+            })
+            .then(response => response.json())
+            .then(chartData => {
+                document.getElementById('data-chart').style.display = 'block';
+                renderChart(chartData);
+            });
+        });
+
+        document.getElementById('analyze-sentiment').addEventListener('click', () => {
+            fetch('/analyze-sentiment', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify(scrapedData)
+            })
+            .then(response => response.json())
+            .then(data => {
+                const formattedData = Object.entries(data.sentiments).map(([tag, result]) => {
+                    return `${tag} - Score: ${result.score.toFixed(2)}, Label: ${result.label}`;
+                }).join('\n');
+                
+                document.getElementById('sentiment-analysis').innerText = formattedData;
+                document.getElementById('sentiment-conclusion').innerText = `Conclusion: ${data.conclusion}`;
+            });
+        });
+
+        function formatJSON(data) {
+            return JSON.stringify(data, null, 2);
+        }
+
+        function renderChart(chartData) {
+            const ctx = document.getElementById('data-chart').getContext('2d');
+            new Chart(ctx, {
+                type: 'pie',
+                data: chartData,
+                options: {
+                    responsive: false,
+                    plugins: {
+                        legend: {
+                            position: 'top',
+                        },
+                        tooltip: {
+                            callbacks: {
+                                label: function(context) {
+                                    let label = context.label || '';
+                                    if (context.parsed !== null) {
+                                        label += ': ' + context.parsed + ' items';
+                                    }
+                                    return label;
+                                }
+                            }
+                        }
+                    }
+                }
+            });
+        }
+    </script>
+</body>
+</html>

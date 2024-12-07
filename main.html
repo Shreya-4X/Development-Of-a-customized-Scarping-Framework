@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Customized Scrapy Framework</title>
+    <link rel="stylesheet" href="{{ url_for('send_static', path='styles/main.css') }}">
+</head>
+<body>
+    <div class="wrapper">
+        <div class="sidebar">
+            <h2>Menu</h2>
+            <a href="/" id="home-btn">Home</a> <!-- Ensure href points to '/' -->
+            <a href="#" id="about-btn">About Us</a>
+            <a href="#" id="contact-btn">Contact Us</a>
+        </div>
+        <div class="content" id="main-content">
+            <div id="home" class="content-section">
+                <h1>Welcome to the Web Scraping Project</h1>
+                <p>Click the button below to get started.</p>
+                <button class="button" onclick="window.location.href='/scraper.html'">Get Started</button>
+            </div>
+
+            <div id="about" class="content-section hidden">
+                <h1>About Us</h1>
+                <p>We provide web scraping solutions to automate data extraction from websites.</p>
+            </div>
+
+            <div id="contact" class="content-section hidden">
+                <h1>Contact Us</h1>
+                <p>For any inquiries, please email us at info@webscraper.com.</p>
+            </div>
+        </div>
+    </div>
+    <div class="footer">
+        &copy; 2024 Web Scraping Project. All rights reserved.
+    </div>
+
+    <script>
+        const homeBtn = document.getElementById('home-btn');
+        const aboutBtn = document.getElementById('about-btn');
+        const contactBtn = document.getElementById('contact-btn');
+        const homeSection = document.getElementById('home');
+        const aboutSection = document.getElementById('about');
+        const contactSection = document.getElementById('contact');
+
+        homeBtn.addEventListener('click', () => {
+            window.location.href = '/scraper.html'; // Redirect to scraper.html
+        });
+
+        aboutBtn.addEventListener('click', () => {
+            aboutSection.classList.toggle('hidden');
+            homeSection.classList.add('hidden');
+            contactSection.classList.add('hidden');
+        });
+
+        contactBtn.addEventListener('click', () => {
+            contactSection.classList.toggle('hidden');
+            homeSection.classList.add('hidden');
+            aboutSection.classList.add('hidden');
+        });
+    </script>
+</body>
+</html>
